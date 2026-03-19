@@ -1,0 +1,17 @@
+# Environments
+venv/
+env/
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Sensitive Data & Working Directories
+data/
+sample/
+Final_Test_take_DB.csv
+
+# System locks & configs
+.system_lock
+.DS_Store
