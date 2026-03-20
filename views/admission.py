@@ -78,12 +78,40 @@ def render_check():
 
         st.divider()
 
-        if not os.path.exists("data/raw_pdfs") or not os.listdir("data/raw_pdfs"):
+        # 1. Safely check for pending files FIRST
+        pdf_files = os.listdir("data/raw_pdfs") if os.path.exists("data/raw_pdfs") else []
+        pending_count = len(pdf_files)
+
+        # 2. ALWAYS calculate and draw the metrics, so they never disappear
+        total_takers = _safe_count(cursor, "SELECT COUNT(*) FROM test_takers")
+        matched = _safe_count(cursor, "SELECT COUNT(*) FROM test_takers WHERE status='Matched'")
+
+        if st.session_state.get('auto_processed', False) or pending_count == 0:
+            miss_marked = pending_count
+            absence = total_takers - matched - miss_marked
+            total_papers = matched + miss_marked
+            aligned = matched
+        else:
+            miss_marked = "~"
+            absence = "~"
+            total_papers = "~"
+            aligned = "~"
+
+        stat_c1, stat_c2, stat_c3, stat_c4, stat_c5 = st.columns(5)
+        stat_c1.metric(t("exam_takers", lang), total_takers)
+        stat_c2.metric(t("exam_papers", lang), total_papers)
+        stat_c3.metric(t("aligned_students", lang), aligned)
+        stat_c4.metric(t("miss_marked", lang), miss_marked)
+        stat_c5.metric(t("absence", lang), absence)
+
+        st.divider()
+
+        # 3. NOW stop the rest of the page from loading if there are no papers
+        if pending_count == 0:
             st.info(t("no_pending_papers", lang))
             return
 
-        pdf_files = os.listdir("data/raw_pdfs")
-
+        # 4. Auto-Process button goes BELOW the metrics now
         if st.button(t("auto_process_matches", lang)):
             processed_count = 0
             progress_bar = st.progress(0)
@@ -157,32 +185,6 @@ def render_check():
             st.success(t("auto_processed", lang).format(processed_count))
             if processed_count > 0:
                 st.rerun()
-
-        total_takers = _safe_count(cursor, "SELECT COUNT(*) FROM test_takers")
-        matched = _safe_count(cursor, "SELECT COUNT(*) FROM test_takers WHERE status='Matched'")
-        pending_count = len(pdf_files)
-
-        # Logic to hide metrics with ~ before processing
-        if st.session_state.get('auto_processed', False) or pending_count == 0:
-            miss_marked = pending_count
-            absence = total_takers - matched - miss_marked
-            total_papers = matched + miss_marked
-            aligned = matched
-        else:
-            miss_marked = "~"
-            absence = "~"
-            total_papers = "~"
-            aligned = "~"
-
-        stat_c1, stat_c2, stat_c3, stat_c4, stat_c5 = st.columns(5)
-        stat_c1.metric(t("exam_takers", lang), total_takers)
-        stat_c2.metric(t("exam_papers", lang), total_papers)
-        stat_c3.metric(t("aligned_students", lang), aligned)
-        stat_c4.metric(t("miss_marked", lang), miss_marked)
-        stat_c5.metric(t("absence", lang), absence)
-
-        if not pdf_files:
-            return
 
         st.divider()
         selected_pdf = st.selectbox(t("select_miss_marked", lang), pdf_files)
